@@ -1,6 +1,13 @@
+version: "3.8"
+
 volumes:
   langgraph-data:
     driver: local
+  osint-postgres-data:
+    driver: local
+  osint-redis-data:
+    driver: local
+
 services:
   langgraph-redis:
     image: docker.io/redis:6
@@ -39,3 +46,84 @@ services:
       LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}
       REDIS_URI: redis://langgraph-redis:6379
       POSTGRES_URI: postgres://postgres:postgres@langgraph-postgres:5432/postgres?sslmode=disable
+
+  osint-postgres:
+    image: docker.io/pgvector/pgvector:pg16
+    container_name: osint-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: osint_db
+      POSTGRES_USER: osint_user
+      POSTGRES_PASSWORD: osint_secure_pass_2024
+    volumes:
+      - osint-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U osint_user -d osint_db"]
+      start_period: 10s
+      timeout: 1s
+      retries: 5
+      interval: 5s
+
+  osint-redis:
+    image: docker.io/redis:7-alpine
+    container_name: osint-redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - osint-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 1s
+      retries: 5
+
+  autospook:
+    image: autospook-osint
+    container_name: autospook-osint
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8123:8000"
+    depends_on:
+      osint-postgres:
+        condition: service_healthy
+      osint-redis:
+        condition: service_healthy
+    environment:
+      # Database Configuration
+      DATABASE_URL: postgresql://osint_user:osint_secure_pass_2024@osint-postgres:5432/osint_db
+      POSTGRES_URI: postgresql://osint_user:osint_secure_pass_2024@osint-postgres:5432/osint_db?sslmode=disable
+      # Redis Configuration
+      REDIS_URI: redis://osint-redis:6379
+      REDIS_URL: redis://osint-redis:6379
+      # LangGraph Configuration
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY}
+      # AI Model API Keys (Required for LLM Integration)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      # Search API Keys (Required for OSINT Operations)
+      GOOGLE_SEARCH_API_KEY: ${GOOGLE_SEARCH_API_KEY}
+      GOOGLE_CSE_ID: ${GOOGLE_CSE_ID}
+      # Optional: Additional Search APIs
+      BING_API_KEY: ${BING_API_KEY}
+      SERPAPI_KEY: ${SERPAPI_KEY}
+      # Application Settings
+      ENVIRONMENT: production
+      LOG_LEVEL: INFO
+      DEBUG: false
+      # OSINT Specific Settings
+      MAX_RETRIEVALS_PER_INVESTIGATION: 20
+      MAX_ENTITIES_PER_INVESTIGATION: 100
+      CACHE_TTL_SECONDS: 3600
+      RATE_LIMIT_PER_MINUTE: 60
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

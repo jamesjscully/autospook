@@ -1,10 +1,13 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "agent": "./src/agent/graph.py:graph"
+    "agent": "./src/agent/graph.py:graph",
+    "osint": "./src/agent/osint_graph.py:osint_graph",
+    "osint_integrated": "./src/service/osint_service.py:graph"
   },
   "http": {
-    "app": "./src/agent/app.py:app"
+    "app": "./src/agent/app.py:app",
+    "osint_api": "./src/api/osint_api.py:app"
   },
   "env": ".env"
 }

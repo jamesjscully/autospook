@@ -8,69 +8,115 @@ Based on the Gemini Fullstack LangGraph Quickstart, this system extends the rese
 
 ## Features
 
-- 🕵️ Multi-agent OSINT architecture with specialized intelligence gathering agents
-- 🧠 6 specialized agents: Query Analysis, Orchestration, Retrieval, Pivot Analysis, Synthesis, and Quality Judge
-- 🔍 Multi-source intelligence gathering (web, social media, public records, academic sources)
-- 🌐 Minimum 8-12 strategic retrievals per investigation across diverse sources
-- 💾 Persistent memory system with entity graphs and source credibility tracking
-- 📊 Professional intelligence reports with risk assessment and confidence scoring
-- 🎯 Specialized for investigating persons, organizations, locations, and events
-- 🔄 Iterative investigation with intelligent pivoting and follow-up strategies
+- 🕵️ **Multi-agent OSINT architecture** with 6 specialized intelligence gathering agents
+- 🧠 **LLM Integration**: Claude Sonnet 4, GPT-4o, Gemini 1.5 Pro, and Claude Opus 4
+- 🔍 **Multi-source intelligence gathering** (web, social media, public records, academic sources)
+- 🌐 **Minimum 8-12 strategic retrievals** per investigation across diverse sources
+- 💾 **Persistent memory system** with entity graphs and source credibility tracking
+- 📊 **Professional intelligence reports** with risk assessment and confidence scoring
+- 🎯 **Specialized for investigating** persons, organizations, locations, and events
+- 🔄 **Iterative investigation** with intelligent pivoting and follow-up strategies
+- ⚡ **UV Package Management** for fast, reliable dependency management
+
+## Agent Architecture
+
+### 6 Specialized OSINT Agents
+
+1. **Query Analysis Agent** (Claude Sonnet 4) - Parses requests and extracts entities
+2. **Planning & Orchestration Agent** (Claude Sonnet 4) - Creates strategic investigation plans
+3. **Multi-Source Retrieval Agent** (Claude Sonnet 4) - Executes 8-12 searches across diverse sources
+4. **Pivot Analysis Agent** (GPT-4o) - Analyzes data for patterns and new investigation angles
+5. **Synthesis & Reporting Agent** (Gemini 1.5 Pro) - Generates comprehensive intelligence reports
+6. **Quality Judge Agent** (Claude Opus 4) - Validates report quality and accuracy
 
 ## Project Structure
 
 The project is divided into two main directories:
 
--   `frontend/`: Contains the React application built with Vite.
--   `backend/`: Contains the LangGraph/FastAPI application, including the research agent logic.
+-   `frontend/`: React application built with Vite and TypeScript
+-   `backend/`: LangGraph/FastAPI application with OSINT agent logic
 
 ## Getting Started: Development and Local Testing
 
-Follow these steps to get the application running locally for development and testing.
+### Prerequisites
 
-**1. Prerequisites:**
+- **Node.js 18+** and npm (for frontend)
+- **Python 3.9+** (required for Google Generative AI)
+- **UV Package Manager** (installed automatically)
+- **PostgreSQL 15+** and **Redis 7+** (for production)
+- **Required API Keys**:
+  - `ANTHROPIC_API_KEY`: Claude models (Query, Planning, Retrieval, Judge)
+  - `OPENAI_API_KEY`: GPT-4o (Pivot Analysis)
+  - `GEMINI_API_KEY`: Gemini 1.5 Pro (Synthesis & Reporting)
+  - `GOOGLE_SEARCH_API_KEY` & `GOOGLE_CSE_ID`: Web search capabilities
+  - `LANGSMITH_API_KEY`: Optional monitoring
 
--   Node.js 18+ and npm (or yarn/pnpm)
--   Python 3.10+
--   PostgreSQL 15+
--   Redis 7+
--   **Required API Keys:**
-    - `GEMINI_API_KEY`: Google Gemini API key (for Gemini 1.5 Pro)
-    - `ANTHROPIC_API_KEY`: Anthropic API key (for Claude Sonnet 4 & Opus 4)
-    - `OPENAI_API_KEY`: OpenAI API key (for GPT-4o)
-    - `GOOGLE_SEARCH_API_KEY` & `GOOGLE_CSE_ID`: For web search capabilities
-    - `LANGSMITH_API_KEY`: For monitoring and debugging
-    
-    1.  Navigate to the `backend/` directory.
-    2.  Create a file named `.env` by copying the `backend/.env.example` file.
-    3.  Add all your API keys to the `.env` file
+### Quick Setup
 
-**2. Install Dependencies:**
+1. **Clone and setup API keys**:
+   ```bash
+   cd backend
+   cp .env.example .env
+   # Edit .env with your API keys (see SETUP_API_KEYS.md)
+   ```
 
-**Backend:**
+2. **Install Dependencies with UV**:
+   ```bash
+   # UV is installed automatically during first use
+   cd backend
+   uv sync  # Installs all dependencies in virtual environment
+   ```
 
+3. **Test LLM Integration**:
+   ```bash
+   cd backend
+   uv run python test_llm_integration.py
+   ```
+
+4. **Install Frontend Dependencies**:
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+### Development Servers
+
+**Option 1: Full System with Docker**
 ```bash
+docker-compose up
+```
+Access at: http://localhost:8123
+
+**Option 2: Development Mode**
+```bash
+# Terminal 1: Backend
 cd backend
-pip install .
-```
+uv run uvicorn simple_api:app --reload
 
-**Frontend:**
-
-```bash
+# Terminal 2: Frontend  
 cd frontend
-npm install
+npm run dev
 ```
+Access at: http://localhost:5173
 
-**3. Run Development Servers:**
-
-**Backend & Frontend:**
-
+**Option 3: Quick Launcher**
 ```bash
-make dev
+python dev_launch.py
 ```
-This will run the backend and frontend development servers.    Open your browser and navigate to the frontend development server URL (e.g., `http://localhost:5173/app`).
 
-_Alternatively, you can run the backend and frontend development servers separately. For the backend, open a terminal in the `backend/` directory and run `langgraph dev`. The backend API will be available at `http://127.0.0.1:2024`. It will also open a browser window to the LangGraph UI. For the frontend, open a terminal in the `frontend/` directory and run `npm run dev`. The frontend will be available at `http://localhost:5173`._
+## API Key Configuration
+
+### Required for Full Functionality
+
+See [`backend/SETUP_API_KEYS.md`](backend/SETUP_API_KEYS.md) for detailed setup instructions.
+
+**Essential API Keys**:
+- **Anthropic**: Claude models for query analysis, planning, retrieval, and quality assurance
+- **OpenAI**: GPT-4o for analytical reasoning and pivot generation  
+- **Google Gemini**: Large context synthesis and report generation
+- **Google Search**: Web search capabilities for OSINT data collection
+
+**Estimated cost**: ~$0.30-0.70 per investigation
 
 ## How the OSINT Agent System Works
 
@@ -78,48 +124,96 @@ The AutoSpook system implements a sophisticated multi-agent OSINT pipeline:
 
 ![Agent Flow](./agent.png)
 
-1.  **Query Analysis (Claude Sonnet 4):** Parses OSINT requests, extracts entities (persons, organizations, locations), and applies stepback prompting for query refinement.
+1. **Query Analysis**: Parses OSINT requests, extracts entities, applies stepback prompting
+2. **Strategic Planning**: Decomposes queries into 8-12+ collection tasks across diverse sources  
+3. **Multi-Source Retrieval**: Parallel searches across web, social media, public records, academic databases
+4. **Pivot Analysis**: Cross-references data, identifies patterns, generates follow-up strategies
+5. **Synthesis & Reporting**: Processes 3M+ tokens to generate professional intelligence reports
+6. **Quality Assurance**: Final validation of accuracy, completeness, and professional standards
 
-2.  **Planning & Orchestration (Claude Sonnet 4):** Decomposes queries into strategic collection tasks, prioritizes sources, and coordinates parallel retrieval operations.
+## Testing
 
-3.  **Multi-Source Retrieval (Claude Sonnet 4):** Executes 8-12+ searches across diverse sources including web, social media, public records, and academic databases.
+### LLM Integration Test
+```bash
+cd backend
+uv run python test_llm_integration.py
+```
 
-4.  **Pivot Analysis (GPT-4o):** Analyzes retrieved data to identify new investigation angles, cross-references information, and generates follow-up strategies.
+### Full Test Suite
+```bash
+# Backend tests
+cd backend && uv run pytest
 
-5.  **Synthesis & Reporting (Gemini 1.5 Pro):** Processes 3M+ tokens of collected OSINT data to generate comprehensive intelligence reports with source attribution.
+# Integration tests  
+python -m pytest tests/
 
-6.  **Quality Assurance (Claude Opus 4):** Acts as final judge to verify report accuracy, completeness, and professional standards before delivery.
+# All tests
+python run_tests.py
+```
+
+### Test Case: Ali Khaledi Nasab Investigation
+The system includes a comprehensive test case investigating "Ali Khaledi Nasab" that demonstrates:
+- Multi-source OSINT collection
+- Entity extraction and relationship mapping
+- Cross-source validation and fact-checking
+- Professional intelligence report generation
 
 ## Deployment
 
-In production, the backend server serves the optimized static frontend build. LangGraph requires a Redis instance and a Postgres database. Redis is used as a pub-sub broker to enable streaming real time output from background runs. Postgres is used to store assistants, threads, runs, persist thread state and long term memory, and to manage the state of the background task queue with 'exactly once' semantics. For more details on how to deploy the backend server, take a look at the [LangGraph Documentation](https://langchain-ai.github.io/langgraph/concepts/deployment_options/). Below is an example of how to build a Docker image that includes the optimized frontend build and the backend server and run it via `docker-compose`.
+### Docker Deployment (Recommended)
 
-_Note: For the docker-compose.yml example you need a LangSmith API key, you can get one from [LangSmith](https://smith.langchain.com/settings)._
+**Build and run with Docker Compose**:
+```bash
+# Set your API keys
+export ANTHROPIC_API_KEY="your_key_here"
+export OPENAI_API_KEY="your_key_here"
+export GEMINI_API_KEY="your_key_here"
+export GOOGLE_SEARCH_API_KEY="your_key_here"
+export GOOGLE_CSE_ID="your_cse_id_here"
 
-_Note: If you are not running the docker-compose.yml example or exposing the backend server to the public internet, you update the `apiUrl` in the `frontend/src/App.tsx` file your host. Currently the `apiUrl` is set to `http://localhost:8123` for docker-compose or `http://localhost:2024` for development._
+# Build and start
+docker-compose up --build
+```
 
-**1. Build the Docker Image:**
+**Access the application**:
+- Main Application: http://localhost:8123
+- API Documentation: http://localhost:8123/docs
+- Health Check: http://localhost:8123/health
 
-   Run the following command from the **project root directory**:
-   ```bash
-   docker build -t gemini-fullstack-langgraph -f Dockerfile .
-   ```
-**2. Run the Production Server:**
+### Performance Optimization
 
-   ```bash
-   GEMINI_API_KEY=<your_gemini_api_key> LANGSMITH_API_KEY=<your_langsmith_api_key> docker-compose up
-   ```
-
-Open your browser and navigate to `http://localhost:8123/app/` to see the application. The API will be available at `http://localhost:8123`.
+The system uses **UV package manager** for:
+- ⚡ **3-5x faster** dependency installation than pip
+- 🔒 **Reproducible builds** with lockfile
+- 🚀 **Efficient Docker builds** with better caching
+- 📦 **Simplified dependency management**
 
 ## Technologies Used
 
-- [React](https://reactjs.org/) (with [Vite](https://vitejs.dev/)) - For the frontend user interface.
-- [Tailwind CSS](https://tailwindcss.com/) - For styling.
-- [Shadcn UI](https://ui.shadcn.com/) - For components.
-- [LangGraph](https://github.com/langchain-ai/langgraph) - For building the backend research agent.
-- [Google Gemini](https://ai.google.dev/models/gemini) - LLM for query generation, reflection, and answer synthesis.
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS + Shadcn UI
+- **Backend**: FastAPI + LangGraph + UV Package Management
+- **LLM Integration**: Claude (Anthropic), GPT-4o (OpenAI), Gemini (Google)
+- **Databases**: PostgreSQL + Redis
+- **Deployment**: Docker + Docker Compose
+
+## Development Features
+
+- 🔬 **LLM Integration Testing**: Verify API key configuration and agent setup
+- 🚀 **Hot Reloading**: Development servers with automatic restart
+- 🎯 **Mock Mode**: Test without API keys using mock responses
+- 📊 **Real-time Updates**: Investigation progress tracking
+- 🔍 **Comprehensive Logging**: Debug agent interactions and API calls
 
 ## License
 
 This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
+
+## Next Steps
+
+1. **Configure API Keys**: Follow [`backend/SETUP_API_KEYS.md`](backend/SETUP_API_KEYS.md)
+2. **Test LLM Integration**: `uv run python test_llm_integration.py`
+3. **Run Investigation**: Test with "Ali Khaledi Nasab" query
+4. **Explore Agent Behavior**: Monitor logs and investigate results
+5. **Customize for Your Use Case**: Modify prompts and investigation parameters
+
+Ready to start? Run the LLM integration test to verify your setup is working!

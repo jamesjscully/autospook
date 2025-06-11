@@ -16,48 +16,49 @@ COPY frontend/ ./
 # Build the frontend
 RUN npm run build
 
-# Stage 2: Python Backend
-FROM docker.io/langchain/langgraph-api:3.11
+# Stage 2: Python Backend with UV
+FROM python:3.11-slim AS backend
 
-# -- Install UV --
-# First install curl, then install UV using the standalone installer
-RUN apt-get update && apt-get install -y curl && \
-    curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    gcc \
+    g++ \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install UV
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
-# -- End of UV installation --
 
-# -- Copy built frontend from builder stage --
-# The app.py expects the frontend build to be at ../frontend/dist relative to its own location.
-# If app.py is at /deps/backend/src/agent/app.py, then ../frontend/dist resolves to /deps/frontend/dist.
-COPY --from=frontend-builder /app/frontend/dist /deps/frontend/dist
-# -- End of copying built frontend --
+# Set working directory
+WORKDIR /app
 
-# -- Adding local package . --
-ADD backend/ /deps/backend
-# -- End of local package . --
+# Copy backend code
+COPY backend/ ./backend/
 
-# -- Installing all local dependencies using UV --
-# First, we need to ensure pip is available for UV to use
-RUN uv pip install --system pip setuptools wheel
-# Install dependencies with UV, respecting constraints
-RUN cd /deps/backend && \
-    PYTHONDONTWRITEBYTECODE=1 UV_SYSTEM_PYTHON=1 uv pip install --system -c /api/constraints.txt -e .
-# -- End of local dependencies install --
-ENV LANGGRAPH_HTTP='{"app": "/deps/backend/src/agent/app.py:app"}'
-ENV LANGSERVE_GRAPHS='{"agent": "/deps/backend/src/agent/graph.py:graph"}'
+# Copy built frontend from builder stage
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# -- Ensure user deps didn't inadvertently overwrite langgraph-api
-# Create all required directories that the langgraph-api package expects
-RUN mkdir -p /api/langgraph_api /api/langgraph_runtime /api/langgraph_license /api/langgraph_storage && \
-    touch /api/langgraph_api/__init__.py /api/langgraph_runtime/__init__.py /api/langgraph_license/__init__.py /api/langgraph_storage/__init__.py
-# Use pip for this specific package as it has poetry-based build requirements
-RUN PYTHONDONTWRITEBYTECODE=1 pip install --no-cache-dir --no-deps -e /api
-# -- End of ensuring user deps didn't inadvertently overwrite langgraph-api --
-# -- Removing pip from the final image (but keeping UV) --
-RUN uv pip uninstall --system pip setuptools wheel && \
-    rm -rf /usr/local/lib/python*/site-packages/pip* /usr/local/lib/python*/site-packages/setuptools* /usr/local/lib/python*/site-packages/wheel* && \
-    find /usr/local/bin -name "pip*" -delete
-# -- End of pip removal --
+# Install Python dependencies using UV
+WORKDIR /app/backend
+RUN uv sync --frozen
 
-WORKDIR /deps/backend
+# Set environment variables for the application
+ENV PYTHONPATH="/app/backend/src"
+ENV PATH="/app/backend/.venv/bin:$PATH"
+
+# Create startup script
+RUN echo '#!/bin/bash\ncd /app/backend\nsource .venv/bin/activate\nexec "$@"' > /app/start.sh && \
+    chmod +x /app/start.sh
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Expose port
+EXPOSE 8000
+
+# Default command
+ENTRYPOINT ["/app/start.sh"]
+CMD ["uvicorn", "simple_api:app", "--host", "0.0.0.0", "--port", "8000"]

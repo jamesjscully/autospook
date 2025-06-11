@@ -7,7 +7,7 @@ from langgraph.types import Send
 from langgraph.graph import StateGraph
 from langgraph.graph import START, END
 from langchain_core.runnables import RunnableConfig
-from google.genai import Client
+import google.generativeai as genai
 
 from agent.state import (
     OverallState,
@@ -37,7 +37,7 @@ if os.getenv("GEMINI_API_KEY") is None:
     raise ValueError("GEMINI_API_KEY is not set")
 
 # Used for Google Search API
-genai_client = Client(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 
 # Nodes
@@ -112,13 +112,11 @@ def web_research(state: WebSearchState, config: RunnableConfig) -> OverallState:
     )
 
     # Uses the google genai client as the langchain client doesn't return grounding metadata
-    response = genai_client.models.generate_content(
-        model=configurable.query_generator_model,
-        contents=formatted_prompt,
-        config={
-            "tools": [{"google_search": {}}],
-            "temperature": 0,
-        },
+    model = genai.GenerativeModel(configurable.query_generator_model)
+    response = model.generate_content(
+        formatted_prompt,
+        tools=[{"google_search": {}}],
+        generation_config=genai.types.GenerationConfig(temperature=0),
     )
     # resolve the urls to short urls for saving tokens and time
     resolved_urls = resolve_urls(
@@ -291,3 +289,9 @@ builder.add_conditional_edges(
 builder.add_edge("finalize_answer", END)
 
 graph = builder.compile(name="pro-search-agent")
+
+# Also export our OSINT graph as an alternative
+try:
+    from agent.osint_graph import osint_graph
+except ImportError:
+    osint_graph = None
