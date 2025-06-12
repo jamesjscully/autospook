@@ -46,6 +46,7 @@ Required API keys:
 - `GEMINI_API_KEY`
 - `GOOGLE_SEARCH_API_KEY`
 - `GOOGLE_CSE_ID`
+- `ENABLE_PHOENIX` (optional, enables Arize Phoenix tracing)
 
 ### 3. Start Data Layer
 

@@ -50,6 +50,7 @@ The project is divided into two main directories:
   - `GEMINI_API_KEY`: Gemini 1.5 Pro (Synthesis & Reporting)
   - `GOOGLE_SEARCH_API_KEY` & `GOOGLE_CSE_ID`: Web search capabilities
   - `LANGSMITH_API_KEY`: Optional monitoring
+  - `ENABLE_PHOENIX`: Set to `true` to enable Arize Phoenix tracing
 
 ### Quick Setup
 
