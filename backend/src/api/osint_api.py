@@ -139,6 +139,23 @@ async def shutdown_event():
     # Cancel all subscriptions
     for task in manager.subscriptions.values():
         task.cancel()
+
+    # Close database connections if initialized
+    try:
+        db = await get_database()
+        await db.close()
+    except Exception as e:
+        logger.error(f"Database cleanup failed: {e}")
+
+    # Close active WebSocket connections
+    for inv_id, conns in list(manager.active_connections.items()):
+        for conn in conns:
+            try:
+                await conn.close()
+            except Exception:
+                pass
+        manager.active_connections.pop(inv_id, None)
+
     logger.info("OSINT API server stopped")
 
 # REST Endpoints
