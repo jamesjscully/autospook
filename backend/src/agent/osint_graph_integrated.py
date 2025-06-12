@@ -27,6 +27,7 @@ from src.agent.osint_prompts import AGENT_PROMPTS
 from src.database.osint_database import get_database, OSINTDatabase
 from src.agent.osint_memory import OSINTMemoryManager, OSINTConversationMemory
 from src.agent.osint_tools import osint_retrieval_manager, OSINTSource, SourceType
+from src.agent.phoenix_integration import initialize_phoenix
 from src.agent.osint_agents_structured import (
     structured_agents, query_analysis_structured, planning_structured,
     pivot_analysis_structured, synthesis_structured, judge_structured
@@ -51,6 +52,8 @@ class IntegratedOSINTGraph:
         
     async def initialize(self, query: str, user_id: str = "system"):
         """Initialize the graph with database connections"""
+        # Enable Phoenix tracing if configured
+        initialize_phoenix()
         # Get database instance
         self.db = await get_database()
         
