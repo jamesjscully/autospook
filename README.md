@@ -113,6 +113,33 @@ Services will be available at:
 
 ## Architecture
 
+### Target Architecture Overview
+
+![Target Architecture](target_arch.png)
+
+The target architecture implements a sophisticated OSINT research workflow that operates in several key phases:
+
+1. **UI/UX Layer**: The user interface accepts research targets and displays "Relevant context: Why are we investigating?" to establish the research context and objectives.
+
+2. **Unique Identity Determination**: The system handles duplicate names and builds criminal profiles through:
+   - Search generation prompts that create targeted queries
+   - Web search execution across multiple sources
+   - Criminal profile generation for comprehensive analysis
+   - User validation to confirm the correct target person
+
+3. **Initial Stepback Prompt Analysis**: Once identity is confirmed, the system performs initial analysis of the target.
+
+4. **Research Loop**: The core research engine operates through an iterative process:
+   - **Inner Answer Research Question Loop**: Generates research questions, executes search strategies, compiles results, and validates if sufficient information has been gathered
+   - **Generate Research Questions**: Creates targeted questions for async processing
+   - **Generate Pivot Questions**: Develops follow-up questions based on findings
+   - **Incidental Observations**: Captures unexpected discoveries during research
+   - **Reflection Process**: Determines if sufficient information exists to generate comprehensive reports
+
+5. **Final Report Generation**: Produces detailed intelligence reports in the UI/report format
+
+This architecture ensures thorough, systematic OSINT research with built-in validation, iterative refinement, and comprehensive reporting capabilities.
+
 ### Core Components
 - **Backend**: FastAPI with LangGraph OSINT agent and Temporal orchestration
 - **Frontend**: React with Axios for API calls
