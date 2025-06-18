@@ -16,7 +16,11 @@ help: ## Show this help message
 	@echo "Available commands:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
-	@echo "Quick start: make dev"
+	@echo "Quick start:"
+	@echo "  1. Ensure Docker is running"
+	@echo "  2. make dev"
+	@echo ""
+	@echo "Note: All research uses Temporal workflows for reliability"
 
 # Installation and setup
 install: ## Install all dependencies (Python + Node.js)
@@ -33,6 +37,25 @@ check-deps: ## Check if required tools are installed
 	@command -v docker >/dev/null 2>&1 || { echo "⚠️  docker is not installed. Some features require Docker."; }
 	@echo "✅ Dependencies check passed"
 
+check-docker: ## Check if Docker is running
+	@echo "🐳 Checking Docker..."
+	@command -v docker >/dev/null 2>&1 || { echo "❌ Docker is not installed. Please install Docker first."; echo "   Visit: https://docs.docker.com/get-docker/"; exit 1; }
+	@docker info >/dev/null 2>&1 || { echo "❌ Docker daemon is not running."; echo "   Please start Docker:"; echo "   - Linux: sudo systemctl start docker"; echo "   - macOS/Windows: Start Docker Desktop"; echo "   - Or try: make start-docker"; exit 1; }
+	@echo "✅ Docker is running"
+
+start-docker: ## Attempt to start Docker daemon (Linux only)
+	@echo "🐳 Attempting to start Docker daemon..."
+	@if command -v systemctl >/dev/null 2>&1; then \
+		sudo systemctl start docker && echo "✅ Docker started successfully"; \
+	elif command -v service >/dev/null 2>&1; then \
+		sudo service docker start && echo "✅ Docker started successfully"; \
+	else \
+		echo "❌ Unable to start Docker automatically."; \
+		echo "   Please start Docker manually:"; \
+		echo "   - Linux: sudo systemctl start docker"; \
+		echo "   - macOS/Windows: Start Docker Desktop"; \
+	fi
+
 setup-env: ## Copy environment template if .env doesn't exist
 	@if [ ! -f .env ]; then \
 		echo "📝 Creating .env file from template..."; \
@@ -43,9 +66,14 @@ setup-env: ## Copy environment template if .env doesn't exist
 	fi
 
 # Development modes
-dev: check-deps setup-env install ## Start full development environment (recommended)
-	@echo "🚀 Starting AutoSpook Development Environment"
-	@echo "============================================="
+dev: check-deps setup-env install temporal-dev ## Start full development environment with Temporal (recommended)
+
+dev-simple: check-deps setup-env install ## Start simple development environment (Temporal required but not auto-started)
+	@echo "🚀 Starting AutoSpook Development Environment (Simple Mode)"
+	@echo "============================================================="
+	@echo "⚠️  Note: Temporal server required but not auto-started"
+	@echo "   Run 'make temporal-start' in another terminal first"
+	@echo ""
 	@$(MAKE) --no-print-directory _dev-parallel
 
 _dev-parallel: ## Internal: Start backend and frontend in parallel
@@ -72,7 +100,7 @@ dev-frontend: ## Start only the frontend server
 	@cd frontend && npm start
 
 # Temporal workflow mode
-temporal-start: ## Start Temporal infrastructure (Docker required)
+temporal-start: check-docker ## Start Temporal infrastructure (Docker required)
 	@echo "🏗️  Starting Temporal infrastructure..."
 	@docker-compose -f docker-compose.temporal.yml up -d
 	@echo "⏳ Waiting for Temporal to be ready..."
@@ -88,7 +116,7 @@ temporal-stop: ## Stop Temporal infrastructure
 temporal-dev: temporal-start ## Start development with Temporal workflows
 	@echo "🚀 Starting AutoSpook with Temporal workflows..."
 	@echo "👷 Starting Temporal worker..."
-	@uv run python backend/orchestrator.py worker > .worker.log 2>&1 & echo $$! > .worker.pid
+	@uv run python backend/agent.py worker > .worker.log 2>&1 & echo $$! > .worker.pid
 	@sleep 2
 	@echo "🔧 Starting backend..."
 	@unset OPENAI_API_KEY && uv run uvicorn backend.main:app --reload --host 0.0.0.0 --port 8001 > .backend.log 2>&1 & echo $$! > .backend.pid
@@ -107,7 +135,7 @@ temporal-dev: temporal-start ## Start development with Temporal workflows
 
 temporal-demo: ## Run Temporal workflow demo
 	@echo "🧪 Running Temporal workflow demo..."
-	@uv run python backend/orchestrator.py
+	@uv run python backend/agent.py demo
 
 # Process management
 stop: ## Stop all running services
@@ -117,7 +145,7 @@ stop: ## Stop all running services
 	@-if [ -f .worker.pid ]; then kill `cat .worker.pid` 2>/dev/null; rm -f .worker.pid; fi
 	@-pkill -f "uvicorn.*backend.main" 2>/dev/null
 	@-pkill -f "npm.*start" 2>/dev/null
-	@-pkill -f "orchestrator.py.*worker" 2>/dev/null
+	@-pkill -f "agent.py.*worker" 2>/dev/null
 	@-rm -f .*.log .*.pid
 	@echo "✅ All services stopped"
 

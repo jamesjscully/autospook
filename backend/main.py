@@ -42,7 +42,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+#base models --domain logic here for now.
 class ResearchRequest(BaseModel):
     """Request model for OSINT research."""
     message: str
@@ -67,9 +67,14 @@ async def root():
         "version": "0.2.0",
         "description": "Open Source Intelligence research using LangChain tools",
         "endpoints": {
-            "research": "/chat or /research - POST",
+            "research": "/chat or /research - POST (Temporal-orchestrated)",
             "health": "/health - GET",
             "docs": "/docs - Interactive API documentation"
+        },
+        "temporal": {
+            "status": "required",
+            "setup": "Run 'make temporal-dev' to start Temporal infrastructure and workers",
+            "note": "All research is executed via Temporal workflows for reliability and fault tolerance"
         }
     }
 
@@ -102,19 +107,20 @@ async def chat(request: ResearchRequest):
                 detail="Research query cannot be empty"
             )
         
-        # Execute research
+        # Execute research using Temporal workflows
+        from .agent import research
         result = await research(
             query=request.message.strip(),
             max_steps=request.max_steps
         )
         
-        # Format response
+        # Format response from ResearchState
         response = ResearchResponse(
-            response=result.get("context", "No analysis generated"),
-            sources=result.get("sources", []),
-            notes=result.get("notes", []),
-            step_count=len(result.get("search_results", [])),
-            search_results=result.get("search_results", [])
+            response=result.context or result.final_report or "No analysis generated",
+            sources=result.sources,
+            notes=result.notes,
+            step_count=result.step,
+            search_results=[]  # Simplified for response
         )
         
         logger.info(f"Research completed successfully for: {request.message}")
@@ -123,18 +129,34 @@ async def chat(request: ResearchRequest):
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
-    except Exception as e:
-        logger.error(f"Error processing research request: {str(e)}")
+    except ImportError as e:
+        logger.error(f"Temporal not available: {str(e)}")
         raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error during research: {str(e)}"
+            status_code=503,
+            detail="Temporal workflows not available. Ensure Temporal server is running with 'make temporal-dev'"
         )
+    except Exception as e:
+        error_msg = str(e)
+        if "temporal" in error_msg.lower() or "connection" in error_msg.lower():
+            logger.error(f"Temporal connection error: {error_msg}")
+            raise HTTPException(
+                status_code=503,
+                detail="Unable to connect to Temporal server. Run 'make temporal-dev' to start the infrastructure."
+            )
+        else:
+            logger.error(f"Error processing research request: {error_msg}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Internal server error during research: {error_msg}"
+            )
 
 
 @app.post("/research", response_model=ResearchResponse)
 async def research_endpoint(request: ResearchRequest):
     """Dedicated research endpoint (alias for /chat)."""
     return await chat(request)
+
+
 
 
 if __name__ == "__main__":
