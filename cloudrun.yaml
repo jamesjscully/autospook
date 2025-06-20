@@ -1,0 +1,86 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: autospook
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/execution-environment: gen2
+spec:
+  template:
+    metadata:
+      annotations:
+        # CPU and memory allocation
+        run.googleapis.com/cpu: "2"
+        run.googleapis.com/memory: "2Gi"
+        
+        # Scaling configuration
+        run.googleapis.com/min-instances: "0"
+        run.googleapis.com/max-instances: "10"
+        
+        # Timeout configuration (max for Cloud Run)
+        run.googleapis.com/timeout: "3600s"
+        
+        # Security settings
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/sandbox: gvisor
+    spec:
+      containerConcurrency: 10
+      timeoutSeconds: 3600
+      containers:
+      - image: gcr.io/we-relate-1/autospook:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: FLASK_ENV
+          value: "production"
+        - name: FLASK_DEBUG
+          value: "False"
+        - name: PORT
+          value: "8080"
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: autospook-secrets
+              key: openai-api-key
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: autospook-secrets
+              key: anthropic-api-key
+        - name: EXA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: autospook-secrets
+              key: exa-api-key
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: autospook-secrets
+              key: secret-key
+        - name: TOKEN_FILE
+          value: "/app/data/tokens.txt"
+        - name: SKIP_AUTH_IN_DEV
+          value: "False"
+        resources:
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+          requests:
+            cpu: "1"
+            memory: "1Gi"
+        startupProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+          periodSeconds: 10
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 30
+          failureThreshold: 3

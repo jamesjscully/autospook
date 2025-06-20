@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoSpook - OSINT Intelligence Gathering</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-green-400 mb-2">🔍 AutoSpook</h1>
+            <p class="text-gray-300 text-lg">Open Source Intelligence Gathering Service</p>
+        </header>
+
+        <div class="max-w-2xl mx-auto">
+            <div class="bg-gray-800 rounded-lg shadow-xl p-8">
+                <h2 class="text-2xl font-semibold mb-6 text-center">Target Investigation</h2>
+                
+                <form hx-post="/submit" hx-target="#results" hx-swap="innerHTML" class="space-y-6">
+                    <div>
+                        <label for="auth_token" class="block text-sm font-medium text-gray-300 mb-2">
+                            <span class="flex items-center">
+                                🔐 Authentication Token
+                                <span class="ml-2 px-2 py-1 bg-red-600 text-red-100 text-xs rounded">Required</span>
+                            </span>
+                        </label>
+                        <input 
+                            type="password" 
+                            id="auth_token" 
+                            name="auth_token" 
+                            placeholder="Enter your API access token"
+                            class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            required
+                        >
+                        <p class="text-xs text-gray-400 mt-1">Contact administrator for access token or use the token generation script</p>
+                        <button 
+                            type="button" 
+                            id="validate-token-btn"
+                            class="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition duration-200"
+                            onclick="validateToken()"
+                        >
+                            Validate Token
+                        </button>
+                        <span id="token-status" class="ml-2 text-xs"></span>
+                    </div>
+
+                    <div>
+                        <label for="target_name" class="block text-sm font-medium text-gray-300 mb-2">
+                            Target Name
+                        </label>
+                        <input 
+                            type="text" 
+                            id="target_name" 
+                            name="target_name" 
+                            placeholder="Enter target name or identifier"
+                            class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                            required
+                        >
+                    </div>
+
+                    <div>
+                        <label for="target_context" class="block text-sm font-medium text-gray-300 mb-2">
+                            Target Context
+                        </label>
+                        <textarea 
+                            id="target_context" 
+                            name="target_context" 
+                            rows="4" 
+                            placeholder="Provide additional context, background information, or specific areas of interest..."
+                            class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-vertical"
+                        ></textarea>
+                    </div>
+
+                    <button 
+                        type="submit" 
+                        class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+                    >
+                        <span class="htmx-indicator">
+                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </span>
+                        Start Investigation
+                    </button>
+                </form>
+
+                <div id="results" class="mt-6"></div>
+            </div>
+        </div>
+
+        <footer class="text-center mt-12 text-gray-500">
+            <p>&copy; 2024 AutoSpook - Open Source Intelligence Platform</p>
+            <p class="text-xs mt-2">🔒 Secure OSINT Analysis with Token-Based Authentication</p>
+        </footer>
+    </div>
+
+    <script>
+        // Token validation function
+        async function validateToken() {
+            const tokenInput = document.getElementById('auth_token');
+            const statusSpan = document.getElementById('token-status');
+            const validateBtn = document.getElementById('validate-token-btn');
+            
+            const token = tokenInput.value.trim();
+            
+            if (!token) {
+                statusSpan.innerHTML = '<span class="text-red-400">❌ Please enter a token</span>';
+                return;
+            }
+            
+            // Show loading state
+            validateBtn.disabled = true;
+            validateBtn.textContent = 'Validating...';
+            statusSpan.innerHTML = '<span class="text-yellow-400">⏳ Checking...</span>';
+            
+            try {
+                const response = await fetch('/auth/validate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ token: token })
+                });
+                
+                const data = await response.json();
+                
+                if (data.valid) {
+                    statusSpan.innerHTML = '<span class="text-green-400">✅ Valid token</span>';
+                    tokenInput.classList.remove('border-red-500');
+                    tokenInput.classList.add('border-green-500');
+                } else {
+                    statusSpan.innerHTML = '<span class="text-red-400">❌ ' + data.message + '</span>';
+                    tokenInput.classList.remove('border-green-500');
+                    tokenInput.classList.add('border-red-500');
+                }
+            } catch (error) {
+                statusSpan.innerHTML = '<span class="text-red-400">❌ Validation failed</span>';
+                console.error('Token validation error:', error);
+            } finally {
+                // Reset button state
+                validateBtn.disabled = false;
+                validateBtn.textContent = 'Validate Token';
+            }
+        }
+        
+        // Clear validation status when token changes
+        document.getElementById('auth_token').addEventListener('input', function() {
+            const statusSpan = document.getElementById('token-status');
+            const tokenInput = this;
+            
+            statusSpan.innerHTML = '';
+            tokenInput.classList.remove('border-red-500', 'border-green-500');
+        });
+        
+        // Auto-validate on enter key
+        document.getElementById('auth_token').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                validateToken();
+            }
+        });
+        
+        // Enhanced form submission with better error handling
+        document.querySelector('form').addEventListener('htmx:responseError', function(evt) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (evt.detail.xhr.status === 401) {
+                resultsDiv.innerHTML = `
+                    <div class="mt-4 p-4 bg-red-900 border border-red-700 text-red-200 rounded-lg">
+                        <h3 class="font-bold">🔒 Authentication Required</h3>
+                        <p class="text-sm mt-2">Please check your authentication token and try again.</p>
+                        <button 
+                            type="button" 
+                            class="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded"
+                            onclick="validateToken()"
+                        >
+                            Validate Token
+                        </button>
+                    </div>
+                `;
+            } else {
+                resultsDiv.innerHTML = `
+                    <div class="mt-4 p-4 bg-red-900 border border-red-700 text-red-200 rounded-lg">
+                        <h3 class="font-bold">Request Failed</h3>
+                        <p class="text-sm mt-2">Please check your connection and try again.</p>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
